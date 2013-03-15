@@ -89,6 +89,17 @@
   "jsdocs_min_spaces_between_columns": 1,
 
   // indicates whether the @method tag should be added automatically
-  "jsdocs_autoadd_method_tag": false
+  "jsdocs_autoadd_method_tag": false,
 
+  // indicates whether to use 
+  // 
+  // /**
+  // blah
+  // 
+  // @param
+  // @param
+  // **/
+  // 
+  // notation
+  "jsdocs_double_star_doc_style": true
 }

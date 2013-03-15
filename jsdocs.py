@@ -99,7 +99,12 @@ class JsdocsCommand(sublime_plugin.TextCommand):
         self.trailingString = escape(re.sub('\\s*\\*\\/\\s*$', '', self.trailingString))
 
         self.indentSpaces = " " * max(0, self.settings.get("jsdocs_indentation_spaces", 1))
-        self.prefix = "*"
+
+        if (self.settings.get("jsdocs_double_star_doc_style") == False):
+            self.prefix = "*"
+        else:
+            self.prefix = ""
+            self.indentSpaces = ""
 
         settingsAlignTags = self.settings.get("jsdocs_align_tags", 'deep')
         self.deepAlignTags = settingsAlignTags == 'deep'
@@ -203,7 +208,10 @@ class JsdocsCommand(sublime_plugin.TextCommand):
                         lastTag = res.group(1)
                         out.insert(idx, "")
             for line in out:
-                snippet += "\n " + self.prefix + (self.indentSpaces + line if line else "")
+                snippet += "\n"
+                if self.settings.get('jsdocs_double_star_doc_style') == False:
+                    snippet += " "
+                snippet += self.prefix + (self.indentSpaces + line if line else "")
         else:
             snippet += "\n " + self.prefix + self.indentSpaces + "${0:" + self.trailingString + '}'
 
@@ -283,6 +291,9 @@ class JsdocsParser(object):
 
         description = self.getNameOverride() or ('[%s description]' % escape(name))
         out.append("${1:%s}" % description)
+
+        if (self.viewSettings.get("jsdocs_double_star_doc_style") == True):
+            out.append("")
 
         if (self.viewSettings.get("jsdocs_autoadd_method_tag") == True):
             out.append("@%s %s" % (
@@ -460,6 +471,8 @@ class JsdocsJavascript(JsdocsParser):
             "bool": "Boolean",
             "function": "Function"
         }
+        if (self.viewSettings.get("jsdocs_double_star_doc_style") == True):
+            self.settings['commentCloser'] = "**/"
 
     def parseFunction(self, line):
         res = re.search(
@@ -1080,7 +1093,7 @@ class JsdocsDeindent(sublime_plugin.TextCommand):
         v = self.view
         lineRegion = v.line(v.sel()[0])
         line = v.substr(lineRegion)
-        v.insert(edit, lineRegion.end(), re.sub("^(\\s*)\\s\\*/.*", "\n\\1", line))
+        v.insert(edit, lineRegion.end(), re.sub("^(\\s*)(\\s|\\*)\\*/.*", "\n\\1", line))
 
 
 class JsdocsReparse(sublime_plugin.TextCommand):
@@ -1094,6 +1107,7 @@ class JsdocsReparse(sublime_plugin.TextCommand):
             return "${%d:%s}" % (next(tabIndex), m.group(1))
 
         v = self.view
+        self.settings = v.settings()
         v.run_command('clear_fields')
         v.run_command('expand_selection', {'to': 'scope'})
         sel = v.sel()[0]
@@ -1102,7 +1116,22 @@ class JsdocsReparse(sublime_plugin.TextCommand):
         text = escape(v.substr(sel))
 
         # strip out leading spaces, since inserting a snippet keeps the indentation
-        text = re.sub("\\n\\s+\\*", "\n *", text)
+        if self.settings.get('jsdocs_double_star_doc_style') == False:
+            text = re.sub(r'\n\s+\*', "\n *", text)
+        else:
+            ident = ""
+            matches = re.search(r'\n([ \t]*)(\*|[ ])\*/', text)
+            if (matches is not None):
+                indent = matches.group(1)
+
+            text = re.sub(r"\n[ \t]*\*[ \t]*", "\n", text)
+            text = re.sub(r"\n/$", "\n" + indent + "**/", text)
+            
+            if (re.match(r"\n\s+\*", text) == None):
+                matches = re.search(r"\n(\s*)\**\*/", text)
+                if (matches is not None):
+                    indent = matches.group(1)
+                    text = re.sub(r"\n" + indent, "\n", text)
 
         # replace [bracketed] [text] with a tabstop
         text = re.sub("(\\[.+?\\])", tabStop, text)
