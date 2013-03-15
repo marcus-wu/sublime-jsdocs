@@ -1125,13 +1125,10 @@ class JsdocsReparse(sublime_plugin.TextCommand):
                 indent = matches.group(1)
 
             text = re.sub(r"\n[ \t]*\*[ \t]*", "\n", text)
-            text = re.sub(r"\n/$", "\n" + indent + "**/", text)
+            text = re.sub(r"\n\**/$", "\n" + indent + "**/", text)
             
             if (re.match(r"\n\s+\*", text) == None):
-                matches = re.search(r"\n(\s*)\**\*/", text)
-                if (matches is not None):
-                    indent = matches.group(1)
-                    text = re.sub(r"\n" + indent, "\n", text)
+                text = re.sub(r"\n" + indent, "\n", text)
 
         # replace [bracketed] [text] with a tabstop
         text = re.sub("(\\[.+?\\])", tabStop, text)
